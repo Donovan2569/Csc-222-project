@@ -104,4 +104,7 @@ struct ShellCommand ParseCommandLine(char* input)
 void ExecuteCommand(struct ShellCommand command)
 {
     execvp(command.args[0], command.args);
+    //Handle error if execution fails
+    perror("execvp() error");
+    exit(EXIT_FAILURE);
 }
