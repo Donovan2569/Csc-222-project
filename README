@@ -1,5 +1,18 @@
-Name:
+Names: Donovan Dempster, Drew Ferrington
 
-Description:
+Description: This program functions as a basic shell, providing users with a command-line interface to execute shell commands. Execution begins as an infinite loop inside the "main()" function.
+             In this loop, the program repeatedly prompts the user for input and processes their commands.
+
+             Upon prompting the user, the "CommandPrompt()" function displays a shell prompt tha includes the current working directory obtained using the "getcwd()" function. The function 
+             dynamically allocates memory for storing user input. Once the user inputs a command, it gets passed to the "ParseCommandLine()" function. Here, the input string is analyzed to 
+             extract the command and its arguments. This process involves tokenizing the input with the "strtok()" function and storing the tokens in an array. The function then returns a 
+             "struct ShellCommand" containing the parsed command and its arguments. 
+
+             With the parsed command and arguments available, the program proceeds to execute the command using the "ExecuteCommand()" function, which creates a child process using the "fork()" 
+             function and uses the "execvp()" function to replace the child process's memory with the specified command and its arguments. Meanwhile, the parent process waits for the child process
+             to finish execution using the "wait()" function.
+
+             In summary, this program creates a shell that allows users to enter commands which are then parsed, executed, and displayed to the user. The shell prompt updates to reflect changes in
+             the current working directory, and the program effectively manages processes to handle user input and execute commands.
 
 Non-implemented functionality:
