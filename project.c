@@ -49,6 +49,12 @@ int main()
         // Parse user input
         command = ParseCommandLine(input);
 
+        if(strcmp(command.args[0], "exit") == 0)
+        {
+            printf("~$\n");
+            return 0;
+        }
+
         //Fork a child process. If in child process, execute the parsed command; if in parent, wait for child to finish
         int pid = fork();
         if (pid == 0)
@@ -103,8 +109,13 @@ struct ShellCommand ParseCommandLine(char* input)
 //Execute a shell command
 void ExecuteCommand(struct ShellCommand command)
 {
-    execvp(command.args[0], command.args);
-    //Handle error if execution fails
-    perror("execvp() error");
-    exit(EXIT_FAILURE);
+    if(strcmp(command.args[0], "cd") == 0)
+        chdir(command.args[1]);
+    else
+    {    
+        execvp(command.args[0], command.args);
+        //Handle error if execution fails
+        perror("execvp() error");
+        exit(EXIT_FAILURE);
+    }
 }
