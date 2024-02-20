@@ -15,4 +15,5 @@ Description: This program functions as a basic shell, providing users with a com
              In summary, this program creates a shell that allows users to enter commands which are then parsed, executed, and displayed to the user. The shell prompt updates to reflect changes in
              the current working directory, and the program effectively manages processes to handle user input and execute commands.
 
-Non-implemented functionality:
+Non-implemented functionality: We were unable to fully implement I/O redirection. We were able to get the > redirection working, but not the < redirection. You are able to use cat < FileToAccess,
+                               but are unable to do OutputFile < InputFile.
