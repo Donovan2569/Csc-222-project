@@ -17,3 +17,6 @@ Description: This program functions as a basic shell, providing users with a com
 
 Non-implemented functionality: We were unable to fully implement I/O redirection. We were able to get the > redirection working, but not the < redirection. You are able to use cat < FileToAccess,
                                but are unable to do OutputFile < InputFile.
+
+                               We were also unable to fully implement the exit command as when you use cd .. it increases the amount of times you have to exit to finally end the program, but you 
+                               are able to exit before you cd.
