@@ -43,18 +43,20 @@ int main()
     // Infinitely prompt the user for shell input
     for(;;)
     {
-        wait(NULL);
         //Call CommandPrompt function to get the user's input
         input = CommandPrompt();
         // Parse user input
         command = ParseCommandLine(input);
 
+        //Check if user wants to exit
         if(strcmp(command.args[0], "exit") == 0)
-        {
-            printf("~$\n");
-            return 0;
-        }
+            {
+                //Print end line and return 0 to end program
+                printf("~$\n");
+                return 0;
+            }
 
+        
         //Fork a child process. If in child process, execute the parsed command; if in parent, wait for child to finish
         int pid = fork();
         if (pid == 0)
@@ -62,7 +64,7 @@ int main()
         else
             wait(NULL);
     }
-    exit(0); //Exit program successfully 
+    return 0; //Exit program successfully 
 }
 
 //Display current working directory and return user input
@@ -109,13 +111,68 @@ struct ShellCommand ParseCommandLine(char* input)
 //Execute a shell command
 void ExecuteCommand(struct ShellCommand command)
 {
-    if(strcmp(command.args[0], "cd") == 0)
-        chdir(command.args[1]);
-    else
-    {    
-        execvp(command.args[0], command.args);
-        //Handle error if execution fails
-        perror("execvp() error");
-        exit(EXIT_FAILURE);
+    int index = 0;
+    while (command.args[index] != NULL)
+    {
+        if (strcmp(command.args[index], "<") == 0 || strcmp(command.args[index], ">") == 0)
+            break;
+        index++;
     }
+
+    if (command.args[index] != NULL)
+    {
+        if (command.args[index + 1] == NULL)
+        {
+            perror("File name not provided.");
+            exit(EXIT_FAILURE);
+        }
+
+        if (strcmp(command.args[index], ">") == 0)
+        {
+            FILE *filePtr = fopen(command.args[index + 1], "w");
+            if (filePtr == NULL)
+            {
+                perror("Error opening output file.");
+                exit(EXIT_FAILURE);
+            }
+            dup2(fileno(filePtr), STDOUT_FILENO);
+            fclose(filePtr);
+        }
+        else if (strcmp(command.args[index], "<") == 0)
+        {
+            if (index == 0 || command.args[index + 1] == NULL)
+            {
+                perror("Input file not provided.");
+                exit(EXIT_FAILURE);
+            }
+            FILE *filePtr = fopen(command.args[index + 1], "r");
+            if (filePtr == NULL)
+            {
+                perror("Error opening input file.");
+                exit(EXIT_FAILURE);
+            }
+            dup2(fileno(filePtr), STDIN_FILENO);
+            fclose(filePtr);
+        }
+
+        // Remove redirection symbol and file name from arguments
+        for (int i = index; command.args[i] != NULL; i++)
+        {
+            command.args[i] = command.args[i + 2];
+        }
+    }
+    else if (strcmp(command.args[0], "cd") == 0)
+    {
+        if (command.args[1] == NULL)
+        {
+            perror("Directory name not provided.");
+            exit(EXIT_FAILURE);
+        }
+        chdir(command.args[1]);
+        return;
+    }
+
+    execvp(command.args[0], command.args);
+    perror("execvp() error");
+    exit(EXIT_FAILURE);
 }
