@@ -154,22 +154,22 @@ void ExecuteCommand(struct ShellCommand command)
         command.args[index] = NULL; // Removing redirection symbol
         command.args[index + 1] = NULL; // Removing filename
     }
-    else if (strcmp(command.args[0], "cd") == 0)
+    else if (strcmp(command.args[0], "cd") == 0) //checks if input starts with cd
     {
         if (command.args[1] == NULL)
         {
-            perror("Directory name not provided.");
-            exit(EXIT_FAILURE);
+            perror("Directory name not provided.");// Returns error if directory name isn't given
+            exit(EXIT_FAILURE); // Exits code
         }
-        if (chdir(command.args[1]) != 0)
+        if (chdir(command.args[1]) != 0) // Changes to and checks destination directory
         {
-            perror("cd error");
-            exit(EXIT_FAILURE);
+            perror("cd error"); // Returns error if directory doesn't exist
+            exit(EXIT_FAILURE); // Exits code
         }
         return;
     }
 
-    execvp(command.args[0], command.args);
-    perror("execvp() error");
-    exit(EXIT_FAILURE);
+    execvp(command.args[0], command.args); // Runs user input as a terminal command
+    perror("execvp() error"); // Returns error if the command was unable to be completed
+    exit(EXIT_FAILURE); // Exits code
 }
