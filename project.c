@@ -6,10 +6,17 @@ Due: 2/19/24
 
 // Imported libraries
 #include <stdio.h> // Provide functions for standard input/output [printf(), fgets(), perror()]
-#include <unistd.h> // Provide functions for process management and system calls [fork(), execvp(), getcwd()]
 #include <stdlib.h> // Provide functions for memory allocation, program termination, and other utilities [fgets(), malloc(), exit()]
 #include <string.h> // Provide functions for string manipulation [strtok(), strcspn(), strdup()]
+
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+#else
+#include <unistd.h> // Provide functions for process management and system calls [fork(), execvp(), getcwd()]
 #include <sys/wait.h> // Provide functions for process management [wait()]
+#endif
 
 // Max number of command line arguments
 #define MAX_ARGS 100
@@ -58,11 +65,7 @@ int main()
 
         
         //Fork a child process. If in child process, execute the parsed command; if in parent, wait for child to finish
-        int pid = fork();
-        if (pid == 0)
-            ExecuteCommand(command);
-        else
-            wait(NULL);
+        ExecuteCommand(command);
     }
     return 0; //Exit program successfully 
 }
@@ -70,8 +73,12 @@ int main()
 //Display current working directory and return user input
 char* CommandPrompt()
 {
-    char cwd[1024]; //Buffer to hold current working directory
-    if(getcwd(cwd, sizeof(cwd))==NULL) //Get current working directory
+    char cwd[1024]; //Buffer to hold current working 
+    #ifdef _WIN32
+        if (_getcwd(cwd, sizeof(cwd)) == NULL)
+    #else
+        if(getcwd(cwd, sizeof(cwd))==NULL) //Get current working directory
+    #endif
     {
         perror("getcwd() error"); //Handle error if getcwd() failes
         exit(EXIT_FAILURE);
@@ -109,70 +116,99 @@ struct ShellCommand ParseCommandLine(char* input)
 }
 
 //Execute a shell command
+//Execute a shell command
 void ExecuteCommand(struct ShellCommand command)
 {
+    // Handle cd
+    if (strcmp(command.args[0], "cd") == 0){
+        if (command.args[1] == NULL){
+            perror("Directory name not provided");
+            return;
+        }
+        if (chdir(command.args[1]) != 0){
+            perror("chdir error");
+        }
+        return;
+    }
+
+    // Handle redirection
     int index = 0;
-    while (command.args[index] != NULL)
+    while (command.args[index] != NULL &&
+           strcmp(command.args[index], "<") != 0 &&
+           strcmp(command.args[index], ">") != 0)
     {
-        if (strcmp(command.args[index], "<") == 0 || strcmp(command.args[index], ">") == 0)
-            break;
         index++;
     }
 
+    FILE* filePtr = NULL;
     if (command.args[index] != NULL)
     {
         if (command.args[index + 1] == NULL)
         {
             perror("File name not provided.");
-            exit(EXIT_FAILURE);
+            return;
         }
 
         if (strcmp(command.args[index], ">") == 0)
         {
-            FILE *filePtr = fopen(command.args[index + 1], "w");
-            if (filePtr == NULL)
-            {
-                perror("Error opening output file.");
-                exit(EXIT_FAILURE);
-            }
-            dup2(fileno(filePtr), STDOUT_FILENO);
-            fclose(filePtr);
+            filePtr = fopen(command.args[index + 1], "w");
+            #ifdef _WIN32
+                _dup2(_fileno(filePtr), _fileno(stdout));
+            #else
+                dup2(fileno(filePtr), STDOUT_FILENO);
+            #endif
         }
         else if (strcmp(command.args[index], "<") == 0)
         {
-            if (index == 0 || command.args[index + 1] == NULL)
-            {
-                perror("Input file not provided.");
-                exit(EXIT_FAILURE);
-            }
-            FILE *filePtr = fopen(command.args[index + 1], "r");
-            if (filePtr == NULL)
-            {
-                perror("Error opening input file.");
-                exit(EXIT_FAILURE);
-            }
-            dup2(fileno(filePtr), STDIN_FILENO);
-            fclose(filePtr);
+            filePtr = fopen(command.args[index + 1], "r");
+            #ifdef _WIN32
+                _dup2(_fileno(filePtr), _fileno(stdin));
+            #else
+                dup2(fileno(filePtr), STDIN_FILENO);
+            #endif
         }
+
+        if (filePtr) fclose(filePtr);
 
         // Remove redirection symbol and file name from arguments
         for (int i = index; command.args[i] != NULL; i++)
-        {
             command.args[i] = command.args[i + 2];
-        }
-    }
-    else if (strcmp(command.args[0], "cd") == 0)
-    {
-        if (command.args[1] == NULL)
-        {
-            perror("Directory name not provided.");
-            exit(EXIT_FAILURE);
-        }
-        chdir(command.args[1]);
-        return;
     }
 
-    execvp(command.args[0], command.args);
-    perror("execvp() error");
-    exit(EXIT_FAILURE);
+    // Execute the command (cross-platform)
+    #ifdef _WIN32
+        // Build a cmd.exe command line
+        char cmdLine[1024] = "cmd.exe /C ";
+        for (int i = 0; command.args[i] != NULL; i++) {
+            strcat(cmdLine, command.args[i]);
+            strcat(cmdLine, " ");
+        }
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        ZeroMemory(&pi, sizeof(pi));
+
+        if (!CreateProcess(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+            fprintf(stderr, "CreateProcess failed (%lu)\n", GetLastError());
+            return;
+        }
+
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+
+    #else
+        int pid = fork();
+        if (pid == 0) {
+            execvp(command.args[0], command.args);
+            perror("execvp() error");
+            exit(EXIT_FAILURE);
+        } else if (pid > 0) {
+            wait(NULL);
+        } else {
+            perror("fork error");
+        }
+    #endif
 }
